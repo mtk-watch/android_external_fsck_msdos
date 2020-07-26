@@ -96,6 +96,7 @@ checkfilesys(const char *fname)
 
 	mod |= readfat(dosfs, &boot, boot.ValidFat >= 0 ? boot.ValidFat : 0, &fat);
 	if (mod & FSFATAL) {
+		printf("Fatal error during readfat()\n");
 		close(dosfs);
 		return 8;
 	}
@@ -106,21 +107,27 @@ checkfilesys(const char *fname)
 
 			mod |= readfat(dosfs, &boot, i, &currentFat);
 
-			if (mod & FSFATAL)
+			if (mod & FSFATAL) {
+				printf("Fatal error during readfat() for comparison\n");
 				goto out;
+			}
 
 			mod |= comparefat(&boot, fat, currentFat, i);
 			free(currentFat);
-			if (mod & FSFATAL)
+			if (mod & FSFATAL) {
+				printf("Fatal error during FAT comparison\n");
 				goto out;
+			}
 		}
 
 	if (!preen)
 		printf("** Phase 2 - Check Cluster Chains\n");
 
 	mod |= checkfat(&boot, fat);
-	if (mod & FSFATAL)
+	if (mod & FSFATAL) {
+		printf("Fatal error during FAT check\n");
 		goto out;
+	}
 	/* delay writing FATs */
 
 	if (!preen)
@@ -128,8 +135,10 @@ checkfilesys(const char *fname)
 
 	mod |= resetDosDirSection(&boot, fat);
 	finish_dosdirsection = 1;
-	if (mod & FSFATAL)
+	if (mod & FSFATAL) {
+		printf("Fatal error during resetDosDirSection()\n");
 		goto out;
+	}
 	/* delay writing FATs */
 
 	mod |= handleDirTree(dosfs, &boot, fat);
@@ -147,8 +156,10 @@ checkfilesys(const char *fname)
 	if (mod & (FSFATMOD|FSFIXFAT)) {
 		if (ask(1, "Update FATs")) {
 			mod |= writefat(dosfs, &boot, fat, mod & FSFIXFAT);
-			if (mod & FSFATAL)
+			if (mod & FSFATAL) {
+				printf("Fatal error during writefat()\n");
 				goto out;
+			}
 		} else
 			mod |= FSERROR;
 	}
@@ -189,8 +200,10 @@ checkfilesys(const char *fname)
 	free(fat);
 	close(dosfs);
 
-	if (mod & (FSFATMOD|FSDIRMOD))
+	if (mod & (FSFATMOD|FSDIRMOD)) {
 		pwarn("\n***** FILE SYSTEM WAS MODIFIED *****\n");
+		return 4;
+	}
 
 	return ret;
 }
